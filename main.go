@@ -19,6 +19,7 @@ var URLArray []string
 var igcMap = make(map[int]igc.Track)
 var timeStarted = time.Now()
 var id int
+var collection = connectDB()
 
 type URLForm struct {
 	URL string `jason:"URL"`
@@ -164,7 +165,7 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(400), http.StatusBadRequest) //checking for errors in the process and returning bad request if so
 		return
 	}
-	collection := connectDB()
+
 	var trackFile trackDB
 	if validateURL(collection, URL.URL) == 0 {
 
@@ -179,8 +180,16 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 		track.UniqueID = fmt.Sprintf("%d", uID) //I decided to use the array index as UniqueID
 
 		//client := connectDB() //connecting to DB
-		trackFile = trackDB{track.UniqueID, track.Pilot, track.Date.String(), track.GliderType, track.GliderID, fmt.Sprintf("%f", trackLength(track)), URL.URL}
-		insertToDB(collection, trackFile)
+		trackFile = trackDB{
+			track.UniqueID,
+			track.Pilot,
+			track.Date.String(),
+			track.GliderType,
+			track.GliderID,
+			fmt.Sprintf("%f", trackLength(track)),
+			URL.URL}
+
+		insertToDB(collection, trackFile) //inserts the specified data to the database
 	}
 	//result := bson.NewDocument()
 
@@ -215,7 +224,6 @@ func getHANDLER1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collection := connectDB()
 	trackFile := trackDB{}
 	cur, err := collection.Find(context.Background(), nil)
 	if err != nil {
@@ -286,20 +294,42 @@ func Handler2(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	if id > len(igcMap)-1 {
+
+	length, error := collection.Count(context.Background(), nil)
+
+	if error != nil {
+		log.Fatal(error)
+		return
+	}
+
+	id64 := int64(id)
+
+	if id64 > length-1 {
 
 		http.Error(w, "404 - Not found, you entered an ID which is not in our system!", 404)
 		return
 
 	}
+
+	trackFile := trackDB{}
+
+	filter := bson.NewDocument(bson.EC.String("uid", ""+fmt.Sprintf("%d", id64)+""))
+
+	errorDB := collection.FindOne(context.Background(), filter).Decode(&trackFile)
+
+	if errorDB != nil {
+		log.Fatal(errorDB)
+		return
+	}
+
 	//end of validation
 
 	resp := "{\n"
-	resp += "  \"H_date\": " + "\"" + igcMap[id].Date.String() + "\",\n"
-	resp += "  \"pilot\": " + "\"" + igcMap[id].Pilot + "\",\n"
-	resp += "  \"glider\": " + "\"" + igcMap[id].GliderType + "\",\n"
-	resp += "  \"glider_id\": " + "\"" + igcMap[id].GliderID + "\",\n"
-	resp += "  \"track_lenght\": " + "\"" + fmt.Sprintf("%f", trackLength(igcMap[id])) + "\"\n"
+	resp += "  \"H_date\": " + "\"" + trackFile.H_date + "\",\n"
+	resp += "  \"pilot\": " + "\"" + trackFile.Pilot + "\",\n"
+	resp += "  \"glider\": " + "\"" + trackFile.Glider + "\",\n"
+	resp += "  \"glider_id\": " + "\"" + trackFile.Glider_ID + "\",\n"
+	resp += "  \"track_lenght\": " + "\"" + trackFile.Track_length + "\"\n"
 	resp += "}"
 
 	fmt.Fprint(w, resp)
@@ -333,7 +363,16 @@ func Handler3(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	if id > len(igcMap)-1 {
+	length, error := collection.Count(context.Background(), nil)
+
+	if error != nil {
+		log.Fatal(error)
+		return
+	}
+
+	id64 := int64(id)
+
+	if id64 > length-1 {
 
 		http.Error(w, "404 - Not found, you entered an ID which is not in our system!", 404)
 		return
@@ -346,22 +385,33 @@ func Handler3(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	trackFile := trackDB{}
+
+	filter := bson.NewDocument(bson.EC.String("uid", ""+fmt.Sprintf("%d", id64)+""))
+
+	errorDB := collection.FindOne(context.Background(), filter).Decode(&trackFile)
+
+	if errorDB != nil {
+		log.Fatal(errorDB)
+		return
+	}
+
 	switch pathVars["field"] {
 
 	case "pilot":
-		fmt.Fprintf(w, "%s", igcMap[id].Pilot)
+		fmt.Fprintf(w, "%s", trackFile.Pilot)
 
 	case "glider":
-		fmt.Fprintf(w, "%s", igcMap[id].GliderType)
+		fmt.Fprintf(w, "%s", trackFile.Glider)
 
 	case "glider_id":
-		fmt.Fprintf(w, "%s", igcMap[id].GliderID)
+		fmt.Fprintf(w, "%s", trackFile.Glider_ID)
 
 	case "track_length":
-		fmt.Fprintf(w, "%f", trackLength(igcMap[id]))
+		fmt.Fprintf(w, "%s", trackFile.Track_length)
 
 	case "H_date":
-		fmt.Fprintf(w, "%s", igcMap[id].Date.String())
+		fmt.Fprintf(w, "%s", trackFile.H_date)
 
 	default:
 		http.Error(w, "", http.StatusNotFound)
