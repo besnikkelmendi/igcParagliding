@@ -33,6 +33,7 @@ type trackDB struct {
 	Glider_ID    string
 	Track_length string
 	Url          string
+	TimeStamp    time.Time
 }
 
 func connectDB() *mongo.Collection {
@@ -187,7 +188,8 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 			track.GliderType,
 			track.GliderID,
 			fmt.Sprintf("%f", trackLength(track)),
-			URL.URL}
+			URL.URL,
+			time.Now()}
 
 		insertToDB(collection, trackFile) //inserts the specified data to the database
 	}
@@ -229,7 +231,7 @@ func getHANDLER1(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	lenght, err := collection.Count(context.Background(), nil)
+	length, err := collection.Count(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -241,7 +243,7 @@ func getHANDLER1(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 		resp += trackFile.Uid
-		if i+1 == lenght {
+		if i+1 == length {
 			break
 		}
 		resp += ","
@@ -329,7 +331,8 @@ func Handler2(w http.ResponseWriter, r *http.Request) {
 	resp += "  \"pilot\": " + "\"" + trackFile.Pilot + "\",\n"
 	resp += "  \"glider\": " + "\"" + trackFile.Glider + "\",\n"
 	resp += "  \"glider_id\": " + "\"" + trackFile.Glider_ID + "\",\n"
-	resp += "  \"track_lenght\": " + "\"" + trackFile.Track_length + "\"\n"
+	resp += "  \"track_length\": " + "\"" + trackFile.Track_length + "\",\n"
+	resp += "  \"track_src_url\": " + "\"" + trackFile.Url + "\"\n"
 	resp += "}"
 
 	fmt.Fprint(w, resp)
@@ -420,6 +423,195 @@ func Handler3(w http.ResponseWriter, r *http.Request) {
 
 }
 
+//Handler4 is used
+func Handler4(w http.ResponseWriter, r *http.Request) {
+
+	trackFile := trackDB{}
+
+	cur, err := collection.Find(context.Background(), nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	length, err := collection.Count(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var i int64 = 0
+	for cur.Next(context.Background()) {
+		err := cur.Decode(&trackFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if i+1 == length {
+			fmt.Fprint(w, trackFile.TimeStamp)
+		}
+
+		i++
+	}
+
+}
+
+//Handler5 is used
+func Handler5(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	start := time.Now()
+	tLatest := ""
+	tStart := ""
+	tStop := ""
+	tracksStr := "["
+
+	trackFile := trackDB{}
+
+	cur, err := collection.Find(context.Background(), nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	length, err := collection.Count(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var i int64 = 0
+	for cur.Next(context.Background()) {
+
+		err := cur.Decode(&trackFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if i <= 4 {
+			tracksStr += trackFile.Uid
+		}
+
+		if i == 0 {
+			tStart = fmt.Sprint(trackFile.TimeStamp)
+		}
+
+		if i+1 == length {
+			tLatest = fmt.Sprint(trackFile.TimeStamp)
+		} else if i < 4 {
+			tracksStr += ","
+		}
+
+		if length > 4 {
+			if i == 4 {
+				tStop = fmt.Sprint(trackFile.TimeStamp)
+			}
+		} else {
+			tStop = tLatest
+		}
+
+		i++
+	}
+
+	tracksStr += "]"
+	resp := "{\n"
+	resp += "  \"tLatest\": " + "\"" + tLatest + "\",\n"
+	resp += "  \"tStart\": " + "\"" + tStart + "\",\n"
+	resp += "  \"tStop\": " + "\"" + tStop + "\",\n"
+	resp += "  \"tracks\": " + "\"" + tracksStr + "\",\n"
+	resp += "  \"processing\": " + "\"" + time.Since(start).String() + "\"\n"
+	resp += "}"
+
+	fmt.Fprint(w, resp)
+
+}
+
+//Handler6 is used
+func Handler6(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != "GET" {
+		http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
+		return
+	}
+
+	pathVars := mux.Vars(r)
+	if len(pathVars) != 2 {
+		http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
+		return
+	}
+
+	if pathVars["timestamp"] == "" {
+
+		http.Error(w, "400 - Bad Request, you entered an empty ID.", http.StatusBadRequest)
+		return
+
+	}
+
+	start := time.Now()
+	tLatest := ""
+	tStart := ""
+	tStop := ""
+	tracksStr := "["
+
+	trackFile := trackDB{}
+
+	cur, err := collection.Find(context.Background(), nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	length, err := collection.Count(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var i int64 = 0
+	var j int64 = 0
+	for cur.Next(context.Background()) {
+
+		err := cur.Decode(&trackFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if trackFile.TimeStamp.String() == pathVars["timestamp"] {
+			j = i
+		}
+		if i <= j+5 {
+			tracksStr += trackFile.Uid
+		}
+
+		if i == j+1 {
+			tStart = fmt.Sprintf("%f", trackFile.TimeStamp)
+		}
+
+		if i+1 == length {
+			tLatest = fmt.Sprintf("%f", trackFile.TimeStamp)
+		} else if i < j+5 {
+			tracksStr += ","
+		}
+
+		if length > 4 {
+			if i == 4 {
+				tStop = fmt.Sprintf("%f", trackFile.TimeStamp)
+			}
+		} else {
+			tStop = tLatest
+		}
+
+		i++
+	}
+
+	tracksStr += "]"
+	resp := "{\n"
+	resp += "  \"tLatest\": " + "\"" + tLatest + "\",\n"
+	resp += "  \"tStart\": " + "\"" + tStart + "\",\n"
+	resp += "  \"tStop\": " + "\"" + tStop + "\",\n"
+	resp += "  \"tracks\": " + "\"" + tracksStr + "\",\n"
+	resp += "  \"processing\": " + "\"" + time.Since(start).String() + "\"\n"
+	resp += "}"
+
+	fmt.Fprint(w, resp)
+
+}
+
 func main() {
 	r := mux.NewRouter()
 
@@ -428,8 +620,11 @@ func main() {
 	r.HandleFunc("/igcinfo/api/igc", postHANDLER1).Methods("POST")
 	r.HandleFunc("/igcinfo/api/igc/{id}", Handler2).Methods("GET")
 	r.HandleFunc("/igcinfo/api/igc/{id}/{field}", Handler3).Methods("GET")
+	r.HandleFunc("/igcinfo/api/ticker/latest", Handler4).Methods("GET")
+	r.HandleFunc("/igcinfo/api/ticker", Handler5).Methods("GET")
+	r.HandleFunc("/igcinfo/api/ticker/{timestamp}", Handler6).Methods("GET")
 
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatal(err)
 	}
 }
