@@ -36,6 +36,34 @@ type trackDB struct {
 	TimeStamp    time.Time
 }
 
+func getJ(collection *mongo.Collection, x string) int64 {
+	trackFile := trackDB{}
+	cur, err := collection.Find(context.Background(), nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	// length, err := collection.Count(context.Background(), nil)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	var i int64
+	var j int64
+	for cur.Next(context.Background()) {
+
+		err := cur.Decode(&trackFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if trackFile.TimeStamp.String() == x {
+			j = i
+			break
+		}
+		i++
+
+	}
+	return j
+}
 func connectDB() *mongo.Collection {
 	client, err := mongo.NewClient("mongodb://localhost:27017")
 	if err != nil {
@@ -533,7 +561,7 @@ func Handler6(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pathVars := mux.Vars(r)
-	if len(pathVars) != 2 {
+	if len(pathVars) != 1 {
 		http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
 		return
 	}
@@ -564,33 +592,31 @@ func Handler6(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var i int64 = 0
-	var j int64 = 0
+	j := getJ(collection, pathVars["timestamp"])
 	for cur.Next(context.Background()) {
 
 		err := cur.Decode(&trackFile)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if trackFile.TimeStamp.String() == pathVars["timestamp"] {
-			j = i
-		}
-		if i <= j+5 {
+
+		if i > j && i <= j+5 {
 			tracksStr += trackFile.Uid
 		}
 
 		if i == j+1 {
-			tStart = fmt.Sprintf("%f", trackFile.TimeStamp)
+			tStart = fmt.Sprint(trackFile.TimeStamp)
 		}
 
 		if i+1 == length {
-			tLatest = fmt.Sprintf("%f", trackFile.TimeStamp)
-		} else if i < j+5 {
+			tLatest = fmt.Sprint(trackFile.TimeStamp)
+		} else if i > j && i < j+5 {
 			tracksStr += ","
 		}
 
-		if length > 4 {
-			if i == 4 {
-				tStop = fmt.Sprintf("%f", trackFile.TimeStamp)
+		if length > j+5 {
+			if i == j+5 {
+				tStop = fmt.Sprint(trackFile.TimeStamp)
 			}
 		} else {
 			tStop = tLatest
