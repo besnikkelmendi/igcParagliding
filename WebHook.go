@@ -116,30 +116,48 @@ func WebHookHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getWebHookHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	pathVars := mux.Vars(r)
+	if len(pathVars) != 1 {
+		http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
+		return
+	}
+
+	// validation
+	if pathVars["whid"] == "" {
+
+		http.Error(w, "400 - Bad Request, you entered an empty ID.", http.StatusBadRequest)
+		return
+
+	}
+	filter := bson.NewDocument(bson.EC.String("webhookid", pathVars["whid"]))
+
+	webhookInfo := WEBHOOKForm{}
+
+	errorDB := coll.FindOne(context.Background(), filter).Decode(&webhookInfo)
+
+	if errorDB != nil {
+		log.Fatal(errorDB)
+		return
+	}
+
 	if r.Method == http.MethodGet {
-		w.Header().Set("Content-Type", "application/json")
 
-		pathVars := mux.Vars(r)
-		if len(pathVars) != 1 {
-			http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
-			return
+		resp := "{\n"
+		resp += "  \"webhookURL\": " + "\"" + webhookInfo.WEBHOOKURL + "\",\n"
+		resp += "  \"minTriggerValue\": " + "\"" + fmt.Sprint(webhookInfo.MINTRIGGERVALUE) + "\"\n"
+		resp += "}"
+
+		fmt.Fprint(w, resp)
+
+	} else if r.Method == http.MethodDelete {
+
+		del, err := coll.DeleteOne(context.Background(), filter)
+		if err != nil {
+			http.Error(w, "404", 400)
 		}
-
-		// validation
-		if pathVars["whid"] == "" {
-
-			http.Error(w, "400 - Bad Request, you entered an empty ID.", http.StatusBadRequest)
-			return
-
-		}
-		webhookInfo := WEBHOOKForm{}
-		filter := bson.NewDocument(bson.EC.String("webhookid", pathVars["whid"]))
-
-		errorDB := coll.FindOne(context.Background(), filter).Decode(&webhookInfo)
-
-		if errorDB != nil {
-			log.Fatal(errorDB)
-			return
+		if del.DeletedCount == 0 {
+			http.Error(w, "404", 400)
 		}
 
 		resp := "{\n"
@@ -149,20 +167,22 @@ func getWebHookHandler(w http.ResponseWriter, r *http.Request) {
 
 		fmt.Fprint(w, resp)
 
+	} else {
+		http.Error(w, "", 400)
 	}
 }
 
-func triggerWebhook() {
+func triggerWebhook(w http.ResponseWriter) {
 	webhookinfo := WEBHOOKForm{}
 
 	trackCount, err := collection.Count(context.Background(), nil)
 	if err != nil {
-		// http.Error(w, "", 400)
+		http.Error(w, "", 400)
 		return
 	}
 	cursor, err := coll.Find(context.Background(), nil)
 	if err != nil {
-		// http.Error(w, "", 400)
+		http.Error(w, "", 400)
 		return
 	}
 
@@ -195,7 +215,7 @@ func triggerWebhook() {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			panic(err)
+			http.Error(w, "", 400)
 		}
 		defer resp.Body.Close()
 	}

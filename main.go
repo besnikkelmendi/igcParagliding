@@ -43,10 +43,6 @@ func getJ(collection *mongo.Collection, x string) int64 {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// length, err := collection.Count(context.Background(), nil)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 	var i int64
 	var j int64
 	for cur.Next(context.Background()) {
@@ -208,7 +204,6 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 		}
 		track.UniqueID = fmt.Sprintf("%d", uID) //I decided to use the array index as UniqueID
 
-		//client := connectDB() //connecting to DB
 		trackFile = trackDB{
 			track.UniqueID,
 			track.Pilot,
@@ -220,9 +215,8 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 			time.Now()}
 
 		insertToDB(collection, trackFile) //inserts the specified data to the database
-		triggerWebhook()
+		triggerWebhook(w)
 	}
-	//result := bson.NewDocument()
 
 	trackDBobj := trackDB{}
 	filter := bson.NewDocument(bson.EC.String("url", ""+URL.URL+""))
@@ -230,8 +224,6 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 	if error != nil {
 		log.Fatal(err)
 	}
-
-	//uID := len(URLArray)
 
 	track.UniqueID = trackDBobj.Uid
 
@@ -280,19 +272,7 @@ func getHANDLER1(w http.ResponseWriter, r *http.Request) {
 	}
 	resp += "]"
 
-	// resp := "["
-	// for i := range URLArray {
-
-	// 	resp += strconv.Itoa(i)
-	// 	if i+1 == len(URLArray) {
-	// 		break
-	// 	}
-	// 	resp += ","
-	// }
-	// resp += "]"
-
 	fmt.Fprint(w, resp)
-
 }
 
 //Handler2 is the handler which will be responsible for requests that contain an IDs
@@ -660,22 +640,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-// collection := client.Database("igc").Collection("igcTracks")
-
-// res, err := collection.InsertOne(context.Background(), map[string]string{
-// 	"uID":          "" + track.UniqueID + "",
-// 	"pilot":        "" + track.Pilot + "",
-// 	"h_date":       "" + track.Date.String() + "",
-// 	"glider":       "" + track.GliderType + "",
-// 	"glider_ID":    "" + track.GliderID + "",
-// 	"track_length": "" + fmt.Sprintf("%f", trackLength(igcMap[id])) + "",
-// 	"url":          "" + URL.URL + ""})
-
-// if err != nil {
-// 	log.Fatal(err)
-// }
-// id := res.InsertedID
-// if id == nil {
-// 	fmt.Print("ID nil!")
-// }
