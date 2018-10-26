@@ -19,7 +19,7 @@ var URLArray []string
 var igcMap = make(map[int]igc.Track)
 var timeStarted = time.Now()
 var id int
-var collection = connectDB()
+var collection = connectDB("igcTracks")
 
 type URLForm struct {
 	URL string `jason:"URL"`
@@ -64,7 +64,7 @@ func getJ(collection *mongo.Collection, x string) int64 {
 	}
 	return j
 }
-func connectDB() *mongo.Collection {
+func connectDB(col string) *mongo.Collection {
 	client, err := mongo.NewClient("mongodb://localhost:27017")
 	if err != nil {
 		log.Fatal(err)
@@ -74,7 +74,7 @@ func connectDB() *mongo.Collection {
 		log.Fatal(err)
 	}
 
-	collection := client.Database("igc").Collection("igcTracks")
+	collection := client.Database("igc").Collection(col)
 
 	return collection
 }
@@ -93,9 +93,9 @@ func insertToDB(collection *mongo.Collection, trackFile trackDB) {
 
 }
 
-func validateURL(collection *mongo.Collection, url string) int64 {
+func validateURL(collection *mongo.Collection, url string, urlVar string) int64 {
 
-	filter := bson.NewDocument(bson.EC.String("url", ""+url+""))
+	filter := bson.NewDocument(bson.EC.String(""+urlVar+"", ""+url+""))
 
 	cur, err := collection.Count(context.Background(), filter)
 	if err != nil {
@@ -196,7 +196,7 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var trackFile trackDB
-	if validateURL(collection, URL.URL) == 0 {
+	if validateURL(collection, URL.URL, "url") == 0 {
 
 		URLArray = append(URLArray, URL.URL)
 		track, _ = igc.ParseLocation(URL.URL)
@@ -220,6 +220,7 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 			time.Now()}
 
 		insertToDB(collection, trackFile) //inserts the specified data to the database
+		triggerWebhook()
 	}
 	//result := bson.NewDocument()
 
@@ -450,10 +451,7 @@ func Handler3(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
-
-//Handler4 is used
-func Handler4(w http.ResponseWriter, r *http.Request) {
-
+func tLatest() string {
 	trackFile := trackDB{}
 
 	cur, err := collection.Find(context.Background(), nil)
@@ -465,7 +463,7 @@ func Handler4(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	resp := ""
 	var i int64 = 0
 	for cur.Next(context.Background()) {
 		err := cur.Decode(&trackFile)
@@ -474,12 +472,18 @@ func Handler4(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if i+1 == length {
-			fmt.Fprint(w, trackFile.TimeStamp)
+			resp = fmt.Sprint(trackFile.TimeStamp)
 		}
 
 		i++
 	}
+	return resp
+}
 
+//Handler4 is used
+func Handler4(w http.ResponseWriter, r *http.Request) {
+
+	fmt.Fprint(w, tLatest())
 }
 
 //Handler5 is used
@@ -649,6 +653,7 @@ func main() {
 	r.HandleFunc("/igcinfo/api/ticker/latest", Handler4).Methods("GET")
 	r.HandleFunc("/igcinfo/api/ticker", Handler5).Methods("GET")
 	r.HandleFunc("/igcinfo/api/ticker/{timestamp}", Handler6).Methods("GET")
+	r.HandleFunc("/api/webhook/new_track/", WebHookHandler).Methods("POST")
 
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatal(err)
