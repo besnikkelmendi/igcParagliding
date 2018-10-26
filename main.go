@@ -654,6 +654,7 @@ func main() {
 	r.HandleFunc("/igcinfo/api/ticker", Handler5).Methods("GET")
 	r.HandleFunc("/igcinfo/api/ticker/{timestamp}", Handler6).Methods("GET")
 	r.HandleFunc("/api/webhook/new_track/", WebHookHandler).Methods("POST")
+	r.HandleFunc("/api/webhook/new_track/{whid}", getWebHookHandler)
 
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatal(err)

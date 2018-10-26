@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/mongo"
 )
@@ -114,6 +115,43 @@ func WebHookHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func getWebHookHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+
+		pathVars := mux.Vars(r)
+		if len(pathVars) != 1 {
+			http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
+			return
+		}
+
+		// validation
+		if pathVars["whid"] == "" {
+
+			http.Error(w, "400 - Bad Request, you entered an empty ID.", http.StatusBadRequest)
+			return
+
+		}
+		webhookInfo := WEBHOOKForm{}
+		filter := bson.NewDocument(bson.EC.String("webhookid", pathVars["whid"]))
+
+		errorDB := coll.FindOne(context.Background(), filter).Decode(&webhookInfo)
+
+		if errorDB != nil {
+			log.Fatal(errorDB)
+			return
+		}
+
+		resp := "{\n"
+		resp += "  \"webhookURL\": " + "\"" + webhookInfo.WEBHOOKURL + "\",\n"
+		resp += "  \"minTriggerValue\": " + "\"" + fmt.Sprint(webhookInfo.MINTRIGGERVALUE) + "\"\n"
+		resp += "}"
+
+		fmt.Fprint(w, resp)
+
+	}
+}
+
 func triggerWebhook() {
 	webhookinfo := WEBHOOKForm{}
 
@@ -141,7 +179,6 @@ func triggerWebhook() {
 		url := webhookinfo.WEBHOOKURL
 
 		trackString := returnTracks(int64(trackCount), int64(webhookinfo.MINTRIGGERVALUE))
-		//trackString = strings.Replace(trackString, `"`, `\"`, -1)
 
 		latestTS := tLatest()
 		jsonPayload := "{"
