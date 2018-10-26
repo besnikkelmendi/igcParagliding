@@ -24,15 +24,9 @@ type WEBHOOKForm struct {
 	WEBHOOKid       string
 }
 
-func returnTracks(n int64) string {
+func returnTracks(n int64, x int64) string {
 
 	trackFileDB := trackDB{}
-
-	trackCount, err := collection.Count(context.Background(), nil)
-	if err != nil {
-		//http.Error(w, "Bad request!", 400)
-
-	}
 
 	cur, err := collection.Find(context.Background(), nil)
 	if err != nil {
@@ -41,12 +35,14 @@ func returnTracks(n int64) string {
 	}
 	resp := ""
 	var i int64 = 0
+
 	for cur.Next(context.Background()) {
 		cur.Decode(&trackFileDB)
-		if i >= trackCount-n && i == trackCount-1 {
+		if i >= (n - x) {
 			resp += trackFileDB.Uid
 			resp += ","
 		}
+		i++
 	}
 	resp = strings.TrimRight(resp, ",")
 	return resp
@@ -144,8 +140,8 @@ func triggerWebhook() {
 
 		url := webhookinfo.WEBHOOKURL
 
-		trackString := returnTracks(int64(trackCount))
-		trackString = strings.Replace(trackString, `"`, `\"`, -1)
+		trackString := returnTracks(int64(trackCount), int64(webhookinfo.MINTRIGGERVALUE))
+		//trackString = strings.Replace(trackString, `"`, `\"`, -1)
 
 		latestTS := tLatest()
 		jsonPayload := "{"
