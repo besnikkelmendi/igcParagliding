@@ -220,3 +220,49 @@ func triggerWebhook(w http.ResponseWriter) {
 		defer resp.Body.Close()
 	}
 }
+
+func triggerWebhookPeriod() {
+	webhookinfo := WEBHOOKForm{}
+
+	trackCount, err := collection.Count(context.Background(), nil)
+	if err != nil {
+		// http.Error(w, "", 400)
+		return
+	}
+	cursor, err := coll.Find(context.Background(), nil)
+	if err != nil {
+		// http.Error(w, "", 400)
+		return
+	}
+
+	for cursor.Next(context.Background()) {
+
+		cursor.Decode(&webhookinfo)
+
+		processStart := time.Now() // Track when the process started
+
+		url := webhookinfo.WEBHOOKURL
+
+		trackString := returnTracks(int64(trackCount), int64(webhookinfo.MINTRIGGERVALUE))
+
+		latestTS := tLatest()
+		jsonPayload := "{"
+		jsonPayload += `"username": "Tracks added",`
+		jsonPayload += `"content": "Latest added track at ` + latestTS + `\n`
+		jsonPayload += `New tracks are ` + trackString + `\n`
+		jsonPayload += `The request took ` + strconv.FormatFloat(float64(time.Since(processStart))/float64(time.Millisecond), 'f', 2, 64) + `ms to process"`
+		jsonPayload += "}"
+
+		var jsonStr = []byte(jsonPayload)
+		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			panic(err)
+		}
+		defer resp.Body.Close()
+	}
+
+}

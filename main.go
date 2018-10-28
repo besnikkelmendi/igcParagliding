@@ -20,6 +20,8 @@ var igcMap = make(map[int]igc.Track)
 var timeStarted = time.Now()
 var id int
 var collection = connectDB("igcTracks")
+var lenTrigPre int64
+var lenTrigPost int64
 
 type URLForm struct {
 	URL string `jason:"URL"`
@@ -202,6 +204,7 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 		if error != nil {
 			fmt.Print("Err count")
 		}
+		lenTrigPre = uID
 		track.UniqueID = fmt.Sprintf("%d", uID) //I decided to use the array index as UniqueID
 
 		trackFile = trackDB{
@@ -216,6 +219,11 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 
 		insertToDB(collection, trackFile) //inserts the specified data to the database
 		triggerWebhook(w)
+		lenTrigPost, err = collection.Count(context.Background(), nil)
+		if err != nil {
+			http.Error(w, "", 400)
+			return
+		}
 	}
 
 	trackDBobj := trackDB{}
@@ -623,6 +631,24 @@ func Handler6(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
+	ticker := time.NewTicker(40 * time.Second)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				if lenTrigPre < lenTrigPost {
+					triggerWebhookPeriod()
+					lenTrigPre++
+				}
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
 	r := mux.NewRouter()
 
 	r.HandleFunc("/igcinfo/api", Handler).Methods("GET")
