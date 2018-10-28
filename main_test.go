@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -287,15 +288,6 @@ func Test_validateURL(t *testing.T) {
 	}
 }
 
-func Test_returnTracks(t *testing.T) {
-
-	result := returnTracks(1, 1)
-
-	if result == "" {
-		t.Error("Name should not exist")
-	}
-}
-
 func Test_trackLength(t *testing.T) {
 
 	result := trackLength(igc.Track{})
@@ -305,11 +297,11 @@ func Test_trackLength(t *testing.T) {
 	}
 }
 
-func Test_insertToDB(t *testing.T) {
+// func Test_insertToDB(t *testing.T) {
 
-	insertToDB(collection, trackDB{})
+// 	insertToDB(collection, trackDB{})
 
-}
+// }
 
 func Test_respHandler6(t *testing.T) {
 
@@ -339,7 +331,10 @@ func Test_getJ(t *testing.T) {
 
 func Test_whPerios(t *testing.T) {
 	//conn := connectDB("igcTracks")
-	triggerWebhookPeriod()
+	err := triggerWebhookPeriod()
+	if err != nil {
+		t.Error(err)
+	}
 }
 func Test_triggerWebhook(t *testing.T) {
 	//conn := connectDB("igcTracks")
@@ -348,7 +343,7 @@ func Test_triggerWebhook(t *testing.T) {
 func Test_getHANDLER1(t *testing.T) {
 	// Create a request to pass to our handler
 	// There are no query parameters, that's why the third parameter is nil
-	req, err := http.NewRequest("GET", "/igcinfo/api/igc", nil)
+	req, err := http.NewRequest("GET", "/paragliding/api/track", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -369,7 +364,7 @@ func Test_getHANDLER1(t *testing.T) {
 func Test_Handler2(t *testing.T) {
 	// Create a request to pass to our handler
 	// There are no query parameters, that's why the third parameter is nil
-	req, err := http.NewRequest("GET", "/igcinfo/api/igc/asd", nil)
+	req, err := http.NewRequest("GET", "/paragliding/api/track/asd", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -390,7 +385,7 @@ func Test_Handler2(t *testing.T) {
 func Test_Handler3(t *testing.T) {
 	// Create a request to pass to our handler
 	// There are no query parameters, that's why the third parameter is nil
-	req, err := http.NewRequest("GET", "/igcinfo/api/igc/0/pilot", nil)
+	req, err := http.NewRequest("GET", "/paragliding/api/track/0/pilot", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -411,7 +406,7 @@ func Test_Handler3(t *testing.T) {
 func Test_Handler4(t *testing.T) {
 	// Create a request to pass to our handler
 	// There are no query parameters, that's why the third parameter is nil
-	req, err := http.NewRequest("GET", "/igcinfo/api/ticker/latest", nil)
+	req, err := http.NewRequest("GET", "/paragliding/api/ticker/latest", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -432,7 +427,7 @@ func Test_Handler4(t *testing.T) {
 func Test_Handler5(t *testing.T) {
 	// Create a request to pass to our handler
 	// There are no query parameters, that's why the third parameter is nil
-	req, err := http.NewRequest("GET", "/igcinfo/api/ticker", nil)
+	req, err := http.NewRequest("GET", "/paragliding/api/ticker", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -453,7 +448,7 @@ func Test_Handler5(t *testing.T) {
 func Test_Handler6(t *testing.T) {
 	// Create a request to pass to our handler
 	// There are no query parameters, that's why the third parameter is nil
-	req, err := http.NewRequest("GET", "/igcinfo/api/ticker/random", nil)
+	req, err := http.NewRequest("GET", "/paragliding/api/ticker/random", nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -515,4 +510,73 @@ func Test_getWebHookHandler_Delete_Method(t *testing.T) {
 		return
 	}
 
+}
+func Test_GetApiIGC(test *testing.T) {
+
+	testServer := httptest.NewServer(http.HandlerFunc(postHANDLER1))
+	defer testServer.Close()
+
+	client := &http.Client{}
+
+	jsonPayload := "{"
+	jsonPayload += `"url": "http://skypolaris.org/wp-content/uploads/IGS%20Files/Medellin%20Guatemala.igc"`
+	jsonPayload += "}"
+
+	var jsonStr = []byte(jsonPayload)
+	request, err := http.NewRequest(http.MethodPost, testServer.URL, bytes.NewBuffer(jsonStr))
+
+	if err != nil {
+		test.Errorf("Error constructing the GET request, %s", err)
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		test.Errorf("Error executing the GET request, %s", err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		test.Errorf("StatusNotFound %d, received %d. ", 404, response.StatusCode)
+		return
+	}
+
+}
+
+func Test_WebHookHandler_POST(test *testing.T) {
+
+	testServer := httptest.NewServer(http.HandlerFunc(WebHookHandler))
+	defer testServer.Close()
+
+	client := &http.Client{}
+
+	jsonPayload := "{"
+	jsonPayload += `"webhookurl": "https://discordapp.com/api/webhooks/504251337953771521/ASiZ1DNh9YtTbLbEOzTp-LmUny8ju_qyhhQwmWlAE6zuWWI7x2nLhLbof9vnNp771at4",`
+	jsonPayload += `"mintriggervalue": 2`
+	jsonPayload += "}"
+
+	var jsonStr = []byte(jsonPayload)
+	request, err := http.NewRequest(http.MethodPost, testServer.URL, bytes.NewBuffer(jsonStr))
+
+	if err != nil {
+		test.Errorf("Error constructing the GET request, %s", err)
+	}
+
+	response, err := client.Do(request)
+	if err != nil {
+		test.Errorf("Error executing the GET request, %s", err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		test.Errorf("StatusNotFound %d, received %d. ", 404, response.StatusCode)
+		return
+	}
+
+}
+
+func Test_returnTracks(t *testing.T) {
+
+	result := returnTracks(1, 1)
+
+	if result == "" {
+		t.Error("Name should not exist")
+	}
 }

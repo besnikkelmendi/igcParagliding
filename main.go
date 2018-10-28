@@ -131,7 +131,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
 		return
 	}
-	if r.URL.Path != "/igcinfo/api" {
+	if r.URL.Path != "/paragliding/api" {
 		http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
 		return
 	}
@@ -226,7 +226,7 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 
 func getHANDLER1(w http.ResponseWriter, r *http.Request) {
 
-	if r.URL.Path != "/igcinfo/api/igc" {
+	if r.URL.Path != "/paragliding/api/track" {
 		http.Error(w, "400 - Bad Request, too many URL arguments.", http.StatusBadRequest)
 		return
 	}
@@ -617,6 +617,11 @@ func respHandler6(x string) (string, int64) {
 
 	return resp, j
 }
+func redirectHandler(w http.ResponseWriter, r *http.Request) {
+
+	http.Redirect(w, r, "/paragliding/api", 302)
+	return
+}
 
 func main() {
 
@@ -627,7 +632,10 @@ func main() {
 			select {
 			case <-ticker.C:
 				if lenTrigPre < lenTrigPost {
-					triggerWebhookPeriod()
+					err := triggerWebhookPeriod()
+					if err != nil {
+						log.Fatal(err)
+					}
 					lenTrigPre++
 				}
 			case <-quit:
@@ -639,16 +647,19 @@ func main() {
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/igcinfo/api", Handler).Methods("GET")
-	r.HandleFunc("/igcinfo/api/igc", getHANDLER1).Methods("GET")
-	r.HandleFunc("/igcinfo/api/igc", postHANDLER1).Methods("POST")
-	r.HandleFunc("/igcinfo/api/igc/{id}", Handler2).Methods("GET")
-	r.HandleFunc("/igcinfo/api/igc/{id}/{field}", Handler3).Methods("GET")
-	r.HandleFunc("/igcinfo/api/ticker/latest", Handler4).Methods("GET")
-	r.HandleFunc("/igcinfo/api/ticker", Handler5).Methods("GET")
-	r.HandleFunc("/igcinfo/api/ticker/{timestamp}", Handler6).Methods("GET")
+	r.HandleFunc("/paragliding/", redirectHandler).Methods("GET")
+	r.HandleFunc("/paragliding/api", Handler).Methods("GET")
+	r.HandleFunc("/paragliding/api/track", getHANDLER1).Methods("GET")
+	r.HandleFunc("/paragliding/api/track", postHANDLER1).Methods("POST")
+	r.HandleFunc("/paragliding/api/track/{id}", Handler2).Methods("GET")
+	r.HandleFunc("/paragliding/api/track/{id}/{field}", Handler3).Methods("GET")
+	r.HandleFunc("/paragliding/api/ticker/latest", Handler4).Methods("GET")
+	r.HandleFunc("/paragliding/api/ticker", Handler5).Methods("GET")
+	r.HandleFunc("/paragliding/api/ticker/{timestamp}", Handler6).Methods("GET")
 	r.HandleFunc("/api/webhook/new_track/", WebHookHandler).Methods("POST")
 	r.HandleFunc("/api/webhook/new_track/{whid}", getWebHookHandler)
+	r.HandleFunc("/admin/api/tracks_count", AdminHandlerGet).Methods("GET")
+	r.HandleFunc("/admin/api/tracks", AdminHandlerDelete).Methods("GET")
 
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatal(err)

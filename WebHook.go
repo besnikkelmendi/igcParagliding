@@ -221,18 +221,18 @@ func triggerWebhook(w http.ResponseWriter) {
 	}
 }
 
-func triggerWebhookPeriod() {
+func triggerWebhookPeriod() error {
 	webhookinfo := WEBHOOKForm{}
 
 	trackCount, err := collection.Count(context.Background(), nil)
 	if err != nil {
 		// http.Error(w, "", 400)
-		return
+		return err
 	}
 	cursor, err := coll.Find(context.Background(), nil)
 	if err != nil {
 		// http.Error(w, "", 400)
-		return
+		return err
 	}
 
 	for cursor.Next(context.Background()) {
@@ -264,5 +264,7 @@ func triggerWebhookPeriod() {
 		}
 		defer resp.Body.Close()
 	}
+
+	return err
 
 }
