@@ -61,7 +61,7 @@ func getJ(collection *mongo.Collection, x string) int64 {
 	return j
 }
 func connectDB(col string) *mongo.Collection {
-	client, err := mongo.Connect(context.Background(), "mongodb://besnikkelmendi:Oneplus6Pixel3@ds143893.mlab.com:43893/paragliding", nil)
+	client, err := mongo.Connect(context.Background(), "mongodb://besnikkelmendi:randompass123@ds143893.mlab.com:43893/paragliding", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
