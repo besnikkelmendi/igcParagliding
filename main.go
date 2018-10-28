@@ -15,8 +15,6 @@ import (
 	"github.com/mongodb/mongo-go-driver/mongo"
 )
 
-var URLArray []string
-var igcMap = make(map[int]igc.Track)
 var timeStarted = time.Now()
 var id int
 var collection = connectDB("igcTracks")
@@ -63,16 +61,12 @@ func getJ(collection *mongo.Collection, x string) int64 {
 	return j
 }
 func connectDB(col string) *mongo.Collection {
-	client, err := mongo.NewClient("mongodb://localhost:27017")
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = client.Connect(context.TODO())
+	client, err := mongo.Connect(context.Background(), "mongodb://besnikkelmendi:Oneplus6Pixel3@ds143893.mlab.com:43893/paragliding", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	collection := client.Database("igc").Collection(col)
+	collection := client.Database("paragliding").Collection(col)
 
 	return collection
 }
@@ -101,15 +95,6 @@ func validateURL(collection *mongo.Collection, url string, urlVar string) int64 
 	}
 
 	return cur
-}
-func getIndex(x []string, y string) int {
-	for i, j := range x {
-		if j == y {
-			//found
-			return i
-		}
-	}
-	return -1
 }
 
 func elapsedTime(start time.Time) string {
@@ -161,8 +146,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	resp := "{\n"
 	resp += "\"uptime\": \" " + elapsedTime(timeStarted) + "\" ,\n"
 	resp += "\"info\": \"Service for Paragliding tracks.\",\n"
-	resp += "\"version\": \"v1\",\n"
-	resp += "\"no\": \"" + fmt.Sprintf("%d", len(URLArray)) + "\" \n"
+	resp += "\"version\": \"v1\"\n"
+
 	resp += "\n}"
 
 	fmt.Fprint(w, resp)
@@ -196,9 +181,7 @@ func postHANDLER1(w http.ResponseWriter, r *http.Request) {
 	var trackFile trackDB
 	if validateURL(collection, URL.URL, "url") == 0 {
 
-		URLArray = append(URLArray, URL.URL)
 		track, _ = igc.ParseLocation(URL.URL)
-		igcMap[len(URLArray)-1] = track
 
 		uID, error := collection.Count(context.Background(), nil)
 		if error != nil {
@@ -472,6 +455,7 @@ func tLatest() string {
 func Handler4(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprint(w, tLatest())
+
 }
 
 //Handler5 is used
@@ -564,7 +548,12 @@ func Handler6(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
+	resp, _ := respHandler6(pathVars["timestamp"])
+	fmt.Fprint(w, resp)
 
+}
+
+func respHandler6(x string) (string, int64) {
 	start := time.Now()
 	tLatest := ""
 	tStart := ""
@@ -584,7 +573,7 @@ func Handler6(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var i int64 = 0
-	j := getJ(collection, pathVars["timestamp"])
+	j := getJ(collection, x)
 	for cur.Next(context.Background()) {
 
 		err := cur.Decode(&trackFile)
@@ -626,8 +615,7 @@ func Handler6(w http.ResponseWriter, r *http.Request) {
 	resp += "  \"processing\": " + "\"" + time.Since(start).String() + "\"\n"
 	resp += "}"
 
-	fmt.Fprint(w, resp)
-
+	return resp, j
 }
 
 func main() {

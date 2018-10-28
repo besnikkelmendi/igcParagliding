@@ -243,7 +243,7 @@ func triggerWebhookPeriod() {
 
 		url := webhookinfo.WEBHOOKURL
 
-		trackString := returnTracks(int64(trackCount), int64(webhookinfo.MINTRIGGERVALUE))
+		trackString := returnTracks(int64(trackCount), int64(1))
 
 		latestTS := tLatest()
 		jsonPayload := "{"
