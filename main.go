@@ -339,6 +339,30 @@ func Handler2(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func replyField(w http.ResponseWriter,x string,trackFile trackDB){
+	switch x {
+
+	case "pilot":
+		fmt.Fprintf(w, "%s", trackFile.Pilot)
+
+	case "glider":
+		fmt.Fprintf(w, "%s", trackFile.Glider)
+
+	case "glider_id":
+		fmt.Fprintf(w, "%s", trackFile.Glider_ID)
+
+	case "track_length":
+		fmt.Fprintf(w, "%s", trackFile.Track_length)
+
+	case "H_date":
+		fmt.Fprintf(w, "%s", trackFile.H_date)
+
+	default:
+		http.Error(w, "", http.StatusNotFound)
+
+	}
+}
+
 //Handler3 is the handler that's responsible for requests that will contain an ID and a field
 func Handler3(w http.ResponseWriter, r *http.Request) {
 
@@ -399,27 +423,7 @@ func Handler3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch pathVars["field"] {
-
-	case "pilot":
-		fmt.Fprintf(w, "%s", trackFile.Pilot)
-
-	case "glider":
-		fmt.Fprintf(w, "%s", trackFile.Glider)
-
-	case "glider_id":
-		fmt.Fprintf(w, "%s", trackFile.Glider_ID)
-
-	case "track_length":
-		fmt.Fprintf(w, "%s", trackFile.Track_length)
-
-	case "H_date":
-		fmt.Fprintf(w, "%s", trackFile.H_date)
-
-	default:
-		http.Error(w, "", http.StatusNotFound)
-
-	}
+	replyField(w,pathVars["field"],trackFile)
 
 }
 func tLatest() string {
