@@ -1,5 +1,9 @@
 # Assignment 2: IGC track viewer extended
 
+### DICLAIMER 
+
+  * The code has changed quite a lot from the last assignment. My goal was to keep the code short and simple and at the same time as readable as possible.
+  
 ### GET /api
 
 * What: meta information about the API
