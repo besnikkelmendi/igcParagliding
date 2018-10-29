@@ -339,7 +339,7 @@ func Handler2(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func replyField(w http.ResponseWriter,x string,trackFile trackDB){
+func replyField(w http.ResponseWriter, x string, trackFile trackDB) {
 	switch x {
 
 	case "pilot":
@@ -423,7 +423,7 @@ func Handler3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	replyField(w,pathVars["field"],trackFile)
+	replyField(w, pathVars["field"], trackFile)
 
 }
 func tLatest() string {
@@ -629,26 +629,6 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	ticker := time.NewTicker(40 * time.Second)
-	quit := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				if lenTrigPre < lenTrigPost {
-					err := triggerWebhookPeriod()
-					if err != nil {
-						log.Fatal(err)
-					}
-					lenTrigPre++
-				}
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-
 	r := mux.NewRouter()
 
 	r.HandleFunc("/paragliding/", redirectHandler).Methods("GET")
@@ -663,7 +643,8 @@ func main() {
 	r.HandleFunc("/api/webhook/new_track/", WebHookHandler).Methods("POST")
 	r.HandleFunc("/api/webhook/new_track/{whid}", getWebHookHandler)
 	r.HandleFunc("/admin/api/tracks_count", AdminHandlerGet).Methods("GET")
-	r.HandleFunc("/admin/api/tracks", AdminHandlerDelete).Methods("GET")
+	r.HandleFunc("/admin/api/tracks", AdminHandlerDelete).Methods("DELETE")
+	r.HandleFunc("/paragliding/admin/api/webhook", AdminHandlerClockTrigger).Methods("GET")
 
 	if err := http.ListenAndServe(":8081", r); err != nil {
 		log.Fatal(err)
